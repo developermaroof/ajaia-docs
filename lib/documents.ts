@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { ShareRole } from "./database.types";
 import { DEFAULT_TITLE } from "./limits";
 import { getAccess, type Access } from "./permissions";
 import { DatabaseError, getSupabase } from "./supabase";
@@ -7,6 +8,7 @@ import type {
   DocumentListResponse,
   DocumentResponse,
   SavedDocument,
+  ShareEntry,
   SharedDocumentSummary,
 } from "./types";
 
@@ -199,5 +201,55 @@ export async function deleteDocument(id: string): Promise<boolean> {
     .delete({ count: "exact" })
     .eq("id", id);
   if (error) throw new DatabaseError("delete the document", error);
+  return (count ?? 0) > 0;
+}
+
+export type ShareResult =
+  | { type: "shared"; share: ShareEntry; created: boolean }
+  | { type: "unknown_email" }
+  | { type: "is_owner" };
+
+// Share (or change the role of an existing share) by email. The caller must be the owner.
+// Emails are stored as seeded (lowercase); the schema lowercases input to match.
+export async function shareDocument(
+  documentId: string,
+  ownerId: string,
+  email: string,
+  role: ShareRole,
+): Promise<ShareResult> {
+  const db = getSupabase();
+  const target = await db.from("users").select("id, name, email").eq("email", email).maybeSingle();
+  if (target.error) throw new DatabaseError("look up the user", target.error);
+  if (!target.data) return { type: "unknown_email" };
+  if (target.data.id === ownerId) return { type: "is_owner" };
+
+  const existing = await db
+    .from("document_shares")
+    .select("user_id")
+    .eq("document_id", documentId)
+    .eq("user_id", target.data.id)
+    .maybeSingle();
+  if (existing.error) throw new DatabaseError("check existing sharing", existing.error);
+
+  // Upsert on the primary key so two concurrent requests can't create duplicate rows.
+  const { error } = await db
+    .from("document_shares")
+    .upsert({ document_id: documentId, user_id: target.data.id, role }, { onConflict: "document_id,user_id" });
+  if (error) throw new DatabaseError("share the document", error);
+
+  return {
+    type: "shared",
+    created: !existing.data,
+    share: { userId: target.data.id, name: target.data.name, email: target.data.email, role },
+  };
+}
+
+export async function removeShare(documentId: string, userId: string): Promise<boolean> {
+  const { error, count } = await getSupabase()
+    .from("document_shares")
+    .delete({ count: "exact" })
+    .eq("document_id", documentId)
+    .eq("user_id", userId);
+  if (error) throw new DatabaseError("remove access", error);
   return (count ?? 0) > 0;
 }

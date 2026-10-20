@@ -21,6 +21,6 @@ export default function DashboardPage() {
 async function MyDocuments() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  const { owned } = await listDocumentsForUser(user.id);
-  return <Dashboard initialDocuments={owned} />;
+  const { owned, shared } = await listDocumentsForUser(user.id);
+  return <Dashboard initialDocuments={owned} initialShared={shared} />;
 }

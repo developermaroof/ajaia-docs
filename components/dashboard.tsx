@@ -4,13 +4,26 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { apiFetch, errorMessage, goToLogin, isUnauthorized } from "@/lib/api-client";
-import type { DocumentListResponse, DocumentSummary, SavedDocumentResponse } from "@/lib/types";
+import type {
+  DocumentListResponse,
+  DocumentSummary,
+  SavedDocumentResponse,
+  SharedDocumentSummary,
+} from "@/lib/types";
 import { DocumentIcon, PlusIcon } from "./icons";
 import { LocalTime } from "./local-time";
+import { RoleBadge } from "./role-badge";
 
-export function Dashboard({ initialDocuments }: { initialDocuments: DocumentSummary[] }) {
+export function Dashboard({
+  initialDocuments,
+  initialShared,
+}: {
+  initialDocuments: DocumentSummary[];
+  initialShared: SharedDocumentSummary[];
+}) {
   const router = useRouter();
   const [documents, setDocuments] = useState(initialDocuments);
+  const [shared, setShared] = useState(initialShared);
   const [creating, setCreating] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -26,7 +39,10 @@ export function Dashboard({ initialDocuments }: { initialDocuments: DocumentSumm
     }
     const controller = new AbortController();
     apiFetch<DocumentListResponse>("/api/documents", { signal: controller.signal })
-      .then((list) => setDocuments(list.owned))
+      .then((list) => {
+        setDocuments(list.owned);
+        setShared(list.shared);
+      })
       .catch((failure: unknown) => {
         if (controller.signal.aborted) return;
         if (isUnauthorized(failure)) goToLogin();
@@ -72,6 +88,7 @@ export function Dashboard({ initialDocuments }: { initialDocuments: DocumentSumm
   }
 
   return (
+    <div className="space-y-12">
     <section aria-labelledby="my-documents">
       <div className="flex items-center justify-between gap-4">
         <h1 id="my-documents" className="font-serif text-2xl font-semibold text-ink">
@@ -157,5 +174,40 @@ export function Dashboard({ initialDocuments }: { initialDocuments: DocumentSumm
         </ul>
       )}
     </section>
+
+    <section aria-labelledby="shared-documents">
+      <h2 id="shared-documents" className="font-serif text-2xl font-semibold text-ink">
+        Shared with me
+      </h2>
+      {shared.length === 0 ? (
+        <div className="mt-6 rounded-xl border border-dashed border-rule bg-paper px-6 py-10 text-center">
+          <p className="font-serif text-lg text-ink">Nothing shared with you yet</p>
+          <p className="mx-auto mt-1 max-w-sm text-sm text-ink-muted">
+            Documents other people share with you will show up here.
+          </p>
+        </div>
+      ) : (
+        <ul className="mt-6 divide-y divide-rule overflow-hidden rounded-xl border border-rule bg-paper">
+          {shared.map((document) => (
+            <li key={document.id} className="flex items-center gap-3 px-4 py-3 sm:px-5">
+              <DocumentIcon width={20} height={20} className="shrink-0 text-ink-muted" />
+              <Link
+                href={`/documents/${document.id}`}
+                className="min-w-0 flex-1 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                <span className="block truncate font-serif text-base text-ink hover:text-accent">
+                  {document.title}
+                </span>
+                <span className="block text-xs text-ink-muted">
+                  Shared by {document.ownerName} · Updated <LocalTime iso={document.updatedAt} />
+                </span>
+              </Link>
+              <RoleBadge role={document.role} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+    </div>
   );
 }

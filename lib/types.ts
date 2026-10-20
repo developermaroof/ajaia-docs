@@ -43,6 +43,9 @@ export type DocumentResponse = {
   shares?: ShareEntry[];
 };
 
+// POST /api/documents/:id/share (201 when newly shared, 200 when the role was updated)
+export type ShareResponse = { share: ShareEntry; created: boolean };
+
 export type SavedDocument = {
   id: string;
   title: string;

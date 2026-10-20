@@ -8,11 +8,12 @@ import { apiFetch, ApiRequestError, errorMessage, goToLogin, isUnauthorized } fr
 import type { SaveState } from "@/lib/autosave";
 import { DocumentSession } from "@/lib/document-session";
 import { DEFAULT_TITLE, MAX_TITLE_LENGTH } from "@/lib/limits";
-import { canEdit, type Access } from "@/lib/permissions";
-import type { DocumentResponse } from "@/lib/types";
+import { canEdit, canShare, type Access } from "@/lib/permissions";
+import type { DocumentResponse, ShareEntry } from "@/lib/types";
 import { EditorSkeleton } from "./editor-skeleton";
 import { EditorToolbar } from "./editor-toolbar";
 import { ChevronLeftIcon } from "./icons";
+import { ShareDialog } from "./share-dialog";
 
 const extensions = [
   StarterKit.configure({
@@ -33,6 +34,9 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   const [session] = useState(() => new DocumentSession(documentId));
   const [phase, setPhase] = useState<Phase>({ name: "loading" });
   const [access, setAccess] = useState<Access | null>(null);
+  const [ownerName, setOwnerName] = useState("");
+  const [shares, setShares] = useState<ShareEntry[]>([]);
+  const [sharing, setSharing] = useState(false);
   const [title, setTitle] = useState("");
   // Bumped when server content replaces the editor's, which recreates the editor.
   const [generation, setGeneration] = useState(0);
@@ -51,6 +55,7 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
   );
   const editable = canEdit(access);
   const conflict = content.status === "conflict";
+  const sharable = canShare(access);
 
   // Load the document, and refresh it each time this page becomes visible again:
   // Next.js keeps visited pages mounted but hidden (React <Activity>) and re-runs
@@ -64,6 +69,8 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
           if (controller.signal.aborted) return;
           const { contentReplaced, titleReplaced } = session.applyServerDocument(data.document);
           setAccess(data.access);
+          setOwnerName(data.document.ownerName);
+          setShares(data.shares ?? []);
           if (titleReplaced) setTitle(data.document.title);
           if (contentReplaced) setGeneration((g) => g + 1);
           setPhase({ name: "ready" });
@@ -201,12 +208,28 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
             className="min-w-0 flex-1 truncate rounded-md border border-transparent bg-transparent px-2 py-1 font-serif text-xl text-ink placeholder:text-ink-muted hover:border-rule focus:border-accent focus:bg-paper focus:outline-none read-only:hover:border-transparent"
           />
           <SaveStatus content={content} title={titleSave} editable={editable} />
+          {sharable && (
+            <button
+              type="button"
+              onClick={() => setSharing(true)}
+              className="shrink-0 rounded-md bg-accent px-3.5 py-1.5 text-sm font-medium text-white hover:bg-accent/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              Share
+            </button>
+          )}
         </div>
         <div className="mx-auto flex w-full max-w-4xl justify-center px-3 py-2 sm:px-6">
           <EditorToolbar editor={editor} disabled={!editable || conflict} />
         </div>
       </div>
 
+      {!editable && (
+        <Banner tone="info">
+          <strong className="font-semibold">You have view access</strong>
+          {ownerName && <> to this document, shared by {ownerName}</>}. You can read it but not
+          change it.
+        </Banner>
+      )}
       {conflict && (
         <Banner
           tone="danger"
@@ -246,6 +269,15 @@ export function DocumentEditor({ documentId }: { documentId: string }) {
           <div key={generation} ref={mountEditor} />
         </article>
       </div>
+      {sharable && sharing && (
+        <ShareDialog
+          documentId={documentId}
+          ownerName={ownerName}
+          shares={shares}
+          onSharesChange={setShares}
+          onClose={() => setSharing(false)}
+        />
+      )}
     </div>
   );
 }
@@ -289,15 +321,18 @@ function Banner({
   action,
   children,
 }: {
-  tone: "danger";
+  tone: "danger" | "info";
   action?: ReactNode;
   children: ReactNode;
 }) {
-  const colors = { danger: "border-danger/25 bg-danger-soft" }[tone];
+  const colors = {
+    danger: "border-danger/25 bg-danger-soft",
+    info: "border-accent/20 bg-accent-soft",
+  }[tone];
   return (
     <div className="px-3 pt-4 sm:px-6">
       <div
-        role="alert"
+        role={tone === "danger" ? "alert" : "status"}
         className={`mx-auto flex max-w-[816px] flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border px-4 py-3 text-sm text-ink ${colors}`}
       >
         <p className="min-w-0 flex-1">{children}</p>

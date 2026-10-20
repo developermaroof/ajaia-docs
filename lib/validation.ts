@@ -37,6 +37,21 @@ export const loginSchema = z.strictObject({
   }),
 });
 
+export const shareSchema = z.strictObject({
+  email: z
+    .string({
+      error: (issue) => (issue.input === undefined ? "email is required" : "email must be a string"),
+    })
+    .trim()
+    .toLowerCase()
+    .min(1, "Enter an email address")
+    .pipe(z.email("Enter a valid email address")),
+  role: z.enum(["viewer", "editor"], {
+    error: (issue) =>
+      issue.input === undefined ? "role is required" : "role must be “viewer” or “editor”",
+  }),
+});
+
 export const createDocumentSchema = z.strictObject({
   title: titleSchema.optional(),
 });
