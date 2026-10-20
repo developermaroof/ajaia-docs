@@ -3,8 +3,8 @@
 ## Tools used
 
 - **Claude (chat):** planning and scoping, reviewing my specs and reports, and turning my previous experience into rules for this build.
-- **Claude Code (Sonnet 5.5):** building each phase from my `SPEC.md`.
-- **Cursor:** as my editor for reviewing and testing the code.
+- **Claude Code (Sonnet 5.5), run in the Warp terminal:** building each phase from my `SPEC.md`.
+- **Cursor:** only as my code editor, for reading, reviewing and testing the code (not for AI generation).
 
 The exact prompts are in `prompts.md`.
 
