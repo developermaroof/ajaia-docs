@@ -1,26 +1,117 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-desk: #eef1f4;
+  --color-paper: #ffffff;
+  --color-ink: #1b2430;
+  --color-ink-muted: #5b6675;
+  --color-rule: #d5dbe2;
+  --color-accent: #3446b8;
+  --color-accent-soft: #e5e8f8;
+  --color-ok: #2f7d4f;
+  --color-warn: #a15c00;
+  --color-warn-soft: #fdf3e2;
+  --color-danger: #b42318;
+  --color-danger-soft: #fdecea;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-serif: var(--font-literata), ui-serif, Georgia, serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-desk);
+  color: var(--color-ink);
+}
+
+/* The editable page body. Tailwind's preflight strips heading and list styles,
+   so the document typography is defined here. */
+@layer components {
+  .doc-content {
+    min-height: 36rem;
+    outline: none;
+    font-family: var(--font-serif);
+    font-size: 1.0625rem;
+    line-height: 1.75;
+    overflow-wrap: break-word;
+  }
+  .doc-content > * + * {
+    margin-top: 0.85em;
+  }
+  .doc-content h1,
+  .doc-content h2,
+  .doc-content h3 {
+    line-height: 1.25;
+    font-weight: 600;
+    margin-top: 1.4em;
+  }
+  .doc-content h1 {
+    font-size: 2rem;
+    letter-spacing: -0.01em;
+  }
+  .doc-content h2 {
+    font-size: 1.45rem;
+  }
+  .doc-content h3 {
+    font-size: 1.2rem;
+  }
+  .doc-content > :first-child {
+    margin-top: 0;
+  }
+  .doc-content ul,
+  .doc-content ol {
+    padding-left: 1.6em;
+  }
+  .doc-content ul {
+    list-style: disc;
+  }
+  .doc-content ol {
+    list-style: decimal;
+  }
+  .doc-content ul ul {
+    list-style: circle;
+  }
+  .doc-content li + li {
+    margin-top: 0.25em;
+  }
+  .doc-content strong {
+    font-weight: 700;
+  }
+  .doc-content a {
+    color: var(--color-accent);
+    text-decoration: underline;
+  }
+  .doc-content blockquote {
+    border-left: 3px solid var(--color-rule);
+    padding-left: 1em;
+    color: var(--color-ink-muted);
+  }
+  .doc-content code {
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+    background: var(--color-desk);
+    border-radius: 3px;
+    padding: 0.1em 0.3em;
+  }
+  .doc-content pre {
+    background: var(--color-desk);
+    border-radius: 4px;
+    padding: 0.75em 1em;
+    overflow-x: auto;
+  }
+  .doc-content pre code {
+    background: none;
+    padding: 0;
+  }
+  .doc-content hr {
+    border: 0;
+    border-top: 1px solid var(--color-rule);
+    margin: 1.75em 0;
+  }
 }
