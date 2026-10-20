@@ -134,10 +134,11 @@ export async function getDocumentForUser(
 export async function createDocument(
   ownerId: string,
   title: string = DEFAULT_TITLE,
+  content?: string,
 ): Promise<SavedDocument> {
   const { data, error } = await getSupabase()
     .from("documents")
-    .insert({ owner_id: ownerId, title })
+    .insert({ owner_id: ownerId, title, ...(content !== undefined && { content }) })
     .select(SAVED_COLUMNS)
     .single();
   if (error) throw new DatabaseError("create the document", error);

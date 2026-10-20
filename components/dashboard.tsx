@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { apiFetch, errorMessage, goToLogin, isUnauthorized } from "@/lib/api-client";
+import { IMPORT_EXTENSIONS, IMPORT_HINT, MAX_IMPORT_BYTES } from "@/lib/limits";
 import type {
   DocumentListResponse,
   DocumentSummary,
@@ -25,6 +26,8 @@ export function Dashboard({
   const [documents, setDocuments] = useState(initialDocuments);
   const [shared, setShared] = useState(initialShared);
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +55,7 @@ export function Dashboard({
       controller.abort();
       setConfirmingId(null);
       setCreating(false);
+      setImporting(false);
     };
   }, []);
 
@@ -69,6 +73,30 @@ export function Dashboard({
       if (isUnauthorized(failure)) return goToLogin();
       setError(`Couldn’t create the document. ${errorMessage(failure)}`);
       setCreating(false);
+    }
+  }
+
+  async function importFile(file: File) {
+    setError(null);
+    // The server checks these too; checking here just avoids uploading a file that will be refused.
+    if (!IMPORT_EXTENSIONS.some((extension) => file.name.toLowerCase().endsWith(extension))) {
+      return setError(`Couldn’t import “${file.name}”. Unsupported file type. ${IMPORT_HINT}.`);
+    }
+    if (file.size > MAX_IMPORT_BYTES) {
+      return setError(`Couldn’t import “${file.name}”. File is too large. The limit is 2 MB.`);
+    }
+
+    setImporting(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const { id } = await apiFetch<{ id: string }>("/api/import", { method: "POST", form });
+      // Stays in the "importing" state until the editor replaces this page (see the effect cleanup).
+      router.push(`/documents/${id}`);
+    } catch (failure) {
+      if (isUnauthorized(failure)) return goToLogin();
+      setError(`Couldn’t import “${file.name}”. ${errorMessage(failure)}`);
+      setImporting(false);
     }
   }
 
@@ -94,15 +122,41 @@ export function Dashboard({
         <h1 id="my-documents" className="font-serif text-2xl font-semibold text-ink">
           My documents
         </h1>
-        <button
-          type="button"
-          onClick={createDocument}
-          disabled={creating}
-          className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3.5 py-2 text-sm font-medium text-white hover:bg-accent/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60"
-        >
-          <PlusIcon width={16} height={16} />
-          {creating ? "Creating…" : "New document"}
-        </button>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <div className="flex items-center gap-2">
+            <input
+              ref={fileInput}
+              type="file"
+              accept={IMPORT_EXTENSIONS.join(",")}
+              className="hidden"
+              tabIndex={-1}
+              aria-label="Import file"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = ""; // lets the same file be picked again after a failure
+                if (file) void importFile(file);
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInput.current?.click()}
+              disabled={importing || creating}
+              className="inline-flex items-center rounded-md border border-rule bg-paper px-3.5 py-2 text-sm font-medium text-ink hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60"
+            >
+              {importing ? "Importing…" : "Import file"}
+            </button>
+            <button
+              type="button"
+              onClick={createDocument}
+              disabled={creating || importing}
+              className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3.5 py-2 text-sm font-medium text-white hover:bg-accent/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60"
+            >
+              <PlusIcon width={16} height={16} />
+              {creating ? "Creating…" : "New document"}
+            </button>
+          </div>
+          <p className="text-xs text-ink-muted">{IMPORT_HINT}</p>
+        </div>
       </div>
 
       {error && (

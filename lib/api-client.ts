@@ -12,14 +12,15 @@ export class ApiRequestError extends Error {
   }
 }
 
-type ApiInit = Omit<RequestInit, "body"> & { json?: unknown };
+type ApiInit = Omit<RequestInit, "body"> & { json?: unknown; form?: FormData };
 
-export async function apiFetch<T>(url: string, { json, headers, ...init }: ApiInit = {}): Promise<T> {
+export async function apiFetch<T>(url: string, { json, form, headers, ...init }: ApiInit = {}): Promise<T> {
   const response = await fetch(url, {
     cache: "no-store",
     ...init,
     headers: json === undefined ? headers : { "Content-Type": "application/json", ...headers },
-    body: json === undefined ? undefined : JSON.stringify(json),
+    // For FormData the browser sets the multipart Content-Type (with its boundary) itself.
+    body: form ?? (json === undefined ? undefined : JSON.stringify(json)),
   });
   if (response.ok) return (await response.json()) as T;
 
